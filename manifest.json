@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "PR Viewer",
+  "version": "1.0",
+  "description": "View and manage pull requests from GitHub and Bitbucket",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "index.html"
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png",
+    "512" : "icons/512.png"
+  }
+}
