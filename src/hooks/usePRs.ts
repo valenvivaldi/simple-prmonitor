@@ -1,15 +1,21 @@
-import {useState, useEffect, useCallback} from 'react';
-import {fetchGithubPRs, fetchBitbucketPRs} from '../services/api';
-import type {PullRequest, Credentials} from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchGithubPRs, fetchBitbucketPRs } from '../services/api';
+import type { PullRequest, Credentials } from '../types';
+import toast from 'react-hot-toast';
 
 export function usePRs() {
-    const [prs, setPRs] = useState<PullRequest[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [prs, setPRs] = useState<PullRequest[]>(() => {
+        // Load stored PRs on initial render
+        const storedPRs = localStorage.getItem('pr-viewer-prs');
+        return storedPRs ? JSON.parse(storedPRs) : [];
+    });
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchPRs = useCallback(async () => {
+    const fetchPRs = useCallback(async (showLoading = false) => {
         try {
+            if (showLoading) setLoading(true);
             setRefreshing(true);
             setError(null);
 
@@ -32,7 +38,9 @@ export function usePRs() {
                     const githubPRs = await fetchGithubPRs(storedCredentials.github.token, true);
                     allPRs.push(...githubPRs);
                 } catch (err) {
-                    errors.push(`GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    const message = `GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`;
+                    errors.push(message);
+                    toast.error(message);
                 }
             }
 
@@ -41,11 +49,13 @@ export function usePRs() {
                     const bitbucketPRs = await fetchBitbucketPRs(
                         storedCredentials.bitbucket.username,
                         storedCredentials.bitbucket.appPassword,
-                            true
+                        true
                     );
                     allPRs.push(...bitbucketPRs);
                 } catch (err) {
-                    errors.push(`Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                    const message = `Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`;
+                    errors.push(message);
+                    toast.error(message);
                 }
             }
 
@@ -55,17 +65,24 @@ export function usePRs() {
 
             if (allPRs.length > 0) {
                 setPRs(allPRs);
+                localStorage.setItem('pr-viewer-prs', JSON.stringify(allPRs));
+                if (typeof chrome !== 'undefined' && chrome.storage) {
+                    chrome.storage.local.set({ 'pr-viewer-prs': allPRs });
+                }
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch PRs');
+            const message = err instanceof Error ? err.message : 'Failed to fetch PRs';
+            setError(message);
+            toast.error(message);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
             setRefreshing(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchPRs();
+        // Initial fetch without loading state
+        fetchPRs(false);
 
         // Set up refresh interval
         const getRefreshInterval = async () => {
@@ -80,16 +97,16 @@ export function usePRs() {
         };
 
         getRefreshInterval().then(interval => {
-            const intervalId = setInterval(fetchPRs, interval);
+            const intervalId = setInterval(() => fetchPRs(false), interval);
             return () => clearInterval(intervalId);
         });
     }, [fetchPRs]);
 
     const refresh = () => {
         if (!refreshing) {
-            fetchPRs();
+            fetchPRs(true);
         }
     };
 
-    return {prs, loading, error, refreshing, refresh};
+    return { prs, loading, error, refreshing, refresh };
 }

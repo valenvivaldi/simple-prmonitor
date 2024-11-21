@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { PRList } from './components/PRList';
 import { SettingsModal } from './components/SettingsModal';
 import { usePRs } from './hooks/usePRs';
+import { Toaster } from 'react-hot-toast';
 import type { TabType } from './types';
 
 export function App() {
@@ -41,16 +42,9 @@ export function App() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
       <Header 
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
