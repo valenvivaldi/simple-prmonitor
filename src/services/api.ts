@@ -1,5 +1,7 @@
 import {Octokit} from '@octokit/rest';
 import type {PullRequest} from '../types';
+import type {GitHubPR} from '../types';
+
 
 export async function fetchGithubPRs(token: string, onlyOpen: boolean = false): Promise<PullRequest[]> {
     try {
@@ -96,7 +98,7 @@ export async function fetchBitbucketPRs(username: string, appPassword: string, o
 
         const data = await response.json();
 
-        return data.values.map((pull) => ({
+        return data.values.map((pull: GitHubPR) => ({
             id: String(pull.id),
             title: pull.title,
             description: pull.description || '',
