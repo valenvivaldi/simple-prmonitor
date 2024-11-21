@@ -23,4 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 chrome_extension.pem
-dist.crx
+
