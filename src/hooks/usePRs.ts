@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { fetchGithubPRs, fetchBitbucketPRs } from '../services/api';
-import type { PullRequest, Credentials } from '../types';
+import {useState, useEffect, useCallback} from 'react';
+import {fetchGithubPRs, fetchBitbucketPRs} from '../services/api';
+import type {PullRequest, Credentials} from '../types';
 import toast from 'react-hot-toast';
+import {updatePRArray} from "../utils.ts";
 
 export function usePRs() {
     const [prs, setPRs] = useState<PullRequest[]>(() => {
@@ -64,10 +65,14 @@ export function usePRs() {
             }
 
             if (allPRs.length > 0) {
-                setPRs(allPRs);
-                localStorage.setItem('pr-viewer-prs', JSON.stringify(allPRs));
+                const currentPrs: PullRequest[] = updatePRArray(prs, allPRs);
+                setPRs(currentPrs);
+                localStorage.setItem('pr-viewer-prs', JSON.stringify(currentPrs));
                 if (typeof chrome !== 'undefined' && chrome.storage) {
-                    chrome.storage.local.set({ 'pr-viewer-prs': allPRs });
+                    chrome.storage.local.set({
+                        'pr-viewer-prs': currentPrs,
+                        'pr-viewer-last-update': new Date().toISOString()
+                    });
                 }
             }
         } catch (err) {
@@ -108,5 +113,5 @@ export function usePRs() {
         }
     };
 
-    return { prs, loading, error, refreshing, refresh };
+    return {prs, loading, error, refreshing, refresh};
 }
