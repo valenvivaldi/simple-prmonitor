@@ -35,7 +35,7 @@ export interface GitHubPR {
     reviewers: string | any[];
 }
 
-export type TabType = 'to-review' | 'reviewed' | 'my-prs';
+export type TabType = 'to-review' | 'reviewed' | 'my-prs' | 'gh-reviewers';
 
 export interface Credentials {
     github?: {
@@ -51,4 +51,16 @@ export interface Settings {
     showOnlyOpen: boolean;
     refreshInterval: string;
     credentials: Credentials;
+}
+
+export interface GithubUser {
+    login: string;
+    name: string;
+    avatar_url: string;
+}
+
+export interface ReviewersList {
+    id: string;
+    name: string;
+    users: GithubUser[];
 }

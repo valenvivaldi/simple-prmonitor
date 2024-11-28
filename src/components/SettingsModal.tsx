@@ -15,31 +15,52 @@ export function SettingsModal({ isOpen, onClose, showOnlyOpen, setShowOnlyOpen }
   const [refreshInterval, setRefreshInterval] = useState('5');
 
   useEffect(() => {
-    const storedCredentials = localStorage.getItem('pr-viewer-credentials');
-    const storedInterval = localStorage.getItem('pr-viewer-refresh-interval');
+    const loadSettings = async () => {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        const result = await chrome.storage.local.get(['pr-viewer-credentials', 'pr-viewer-refresh-interval']);
+        if (result['pr-viewer-credentials']) {
+          setCredentials(result['pr-viewer-credentials']);
+        }
+        if (result['pr-viewer-refresh-interval']) {
+          setRefreshInterval(result['pr-viewer-refresh-interval']);
+        }
+      } else {
+        const storedCredentials = localStorage.getItem('pr-viewer-credentials');
+        const storedInterval = localStorage.getItem('pr-viewer-refresh-interval');
+        
+        if (storedCredentials) {
+          setCredentials(JSON.parse(storedCredentials));
+        }
+        if (storedInterval) {
+          setRefreshInterval(storedInterval);
+        }
+      }
+    };
     
-    if (storedCredentials) {
-      setCredentials(JSON.parse(storedCredentials));
+    if (isOpen) {
+      loadSettings();
     }
-    if (storedInterval) {
-      setRefreshInterval(storedInterval);
-    }
-  }, []);
+  }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Save to localStorage
     localStorage.setItem('pr-viewer-credentials', JSON.stringify(credentials));
     localStorage.setItem('pr-viewer-refresh-interval', refreshInterval);
     localStorage.setItem('pr-viewer-show-only-open', JSON.stringify(showOnlyOpen));
     
     // If in Chrome extension context, also save to chrome.storage
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({
+      await chrome.storage.local.set({
         'pr-viewer-credentials': credentials,
         'pr-viewer-refresh-interval': refreshInterval,
         'pr-viewer-show-only-open': showOnlyOpen
       });
     }
+
+    // Trigger a page reload to ensure all components pick up the new settings
+    window.location.reload();
     
     onClose();
   };
