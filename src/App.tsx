@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import {useState, useEffect} from 'react';
 import {Header} from './components/Header';
 import {PRList} from './components/PRList';
 import {SettingsModal} from './components/SettingsModal';
@@ -8,7 +8,7 @@ import {Toaster} from 'react-hot-toast';
 import type {TabType, Credentials} from './types';
 
 export function App() {
-    const {prs, loading, error, refreshing, refresh} = usePRs();
+    const {prs, loading, refreshing, refresh} = usePRs();
     const [currentTab, setCurrentTab] = useState<TabType>('to-review');
     const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set(['github', 'bitbucket']));
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -41,7 +41,7 @@ export function App() {
         .filter(pr => {
             switch (currentTab) {
                 case 'to-review':
-                    return !pr.reviewed && !pr.isOwner;
+                    return !pr.reviewed && !pr.isOwner && pr.imReviewer;
                 case 'reviewed':
                     return pr.reviewed && !pr.isOwner;
                 case 'my-prs':

@@ -45,6 +45,7 @@ export async function fetchGithubPRs(token: string, onlyOpen: boolean = false): 
                     updated: pull.updated_at,
                     source: 'github' as const,
                     url: pull.html_url,
+                    imReviewer: Boolean(pull.requested_reviewers?.find(reviewer => reviewer.login === user.login)),
                     reviewed: Boolean(pull.requested_reviewers?.length === 0),
                     isOwner: pull.user?.login === user.login
                 }));
@@ -82,9 +83,7 @@ export async function fetchBitbucketPRs(username: string, appPassword: string, o
 
 
         let url = 'https://api.bitbucket.org/2.0/pullrequests/' + user_id;
-        if (onlyOpen) {
-            url += '?state=OPEN';
-        }
+
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Basic ${auth}`,
@@ -115,6 +114,7 @@ export async function fetchBitbucketPRs(username: string, appPassword: string, o
             updated: pull.updated_on,
             source: 'bitbucket' as const,
             url: pull.links.html.href,
+            imReviewer: false,
             reviewed: pull.reviewers?.length === 0,
             isOwner: pull.author.account_id === user_id
         }));

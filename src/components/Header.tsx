@@ -1,4 +1,3 @@
-import React from 'react';
 import { GitPullRequest, Search, Settings, RotateCw } from 'lucide-react';
 import { Tab } from '@headlessui/react';
 import { PlatformFilter } from './PlatformFilter';

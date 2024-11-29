@@ -15,6 +15,7 @@ export interface PullRequest {
     updated: string;
     source: 'github' | 'bitbucket';
     url: string;
+    imReviewer: boolean;
     reviewed: boolean;
     isOwner: boolean;
 }
