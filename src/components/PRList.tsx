@@ -4,9 +4,10 @@ import type { PullRequest } from '../types';
 
 interface PRListProps {
   prs: PullRequest[];
+  githubToken?: string;
 }
 
-export function PRList({ prs }: PRListProps) {
+export function PRList({ prs, githubToken }: PRListProps) {
   if (prs.length === 0) {
     return (
       <div className="text-center py-12">
@@ -18,7 +19,7 @@ export function PRList({ prs }: PRListProps) {
   return (
     <div className="space-y-4">
       {prs.map((pr) => (
-        <PRCard key={pr.id} pr={pr} />
+        <PRCard key={pr.id} pr={pr} githubToken={githubToken} />
       ))}
     </div>
   );

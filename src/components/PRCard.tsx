@@ -1,10 +1,12 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { GitPullRequest, MessageSquare, GitCommit, Github } from 'lucide-react';
+import { AddReviewersPopover } from './AddReviewersPopover';
 import type { PullRequest } from '../types';
 
 interface PRCardProps {
   pr: PullRequest;
+  githubToken?: string;
 }
 
 const statusColors = {
@@ -13,7 +15,12 @@ const statusColors = {
   closed: 'bg-red-100 text-red-800',
 };
 
-export function PRCard({ pr }: PRCardProps) {
+export function PRCard({ pr, githubToken }: PRCardProps) {
+  // Extract owner and repo from repository string (format: "owner/repo")
+  const [owner, repo] = pr.repository.split('/');
+  // Extract PR number from URL (format: "https://github.com/owner/repo/pull/123")
+  const prNumber = parseInt(pr.url.split('/pull/')[1], 10);
+
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-200">
       <div className="flex items-start justify-between">
@@ -51,12 +58,22 @@ export function PRCard({ pr }: PRCardProps) {
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[pr.status]}`}>
-            <div className="flex items-center space-x-1">
-              <GitPullRequest className="w-4 h-4" />
-              <span>{pr.status}</span>
-            </div>
-          </span>
+          <div className="flex items-center space-x-1">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[pr.status]}`}>
+              <div className="flex items-center space-x-1">
+                <GitPullRequest className="w-4 h-4" />
+                <span>{pr.status}</span>
+              </div>
+            </span>
+            {pr.isOwner && pr.source === 'github' && githubToken && (
+              <AddReviewersPopover
+                owner={owner}
+                repo={repo}
+                prNumber={prNumber}
+                githubToken={githubToken}
+              />
+            )}
+          </div>
           <div className="flex items-center space-x-4 text-gray-500">
             <div className="flex items-center space-x-1">
               <MessageSquare className="w-4 h-4" />

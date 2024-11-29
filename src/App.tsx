@@ -86,7 +86,10 @@ export function App() {
                 {currentTab === 'gh-reviewers' && credentials.github?.token ? (
                     <GHReviewers githubToken={credentials.github.token}/>
                 ) : (
-                    <PRList prs={filteredPRs}/>
+                    <PRList 
+                        prs={filteredPRs} 
+                        githubToken={credentials.github?.token}
+                    />
                 )}
             </main>
             <SettingsModal
@@ -98,5 +101,4 @@ export function App() {
         </div>
     );
 }
-
 export default App;

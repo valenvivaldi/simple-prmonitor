@@ -15,3 +15,17 @@ export async function fetchGithubUser(username: string, token: string): Promise<
         throw new Error(`Usuario no encontrado: ${username}`);
     }
 }
+
+export async function addReviewers(owner: string, repo: string, prNumber: number, reviewers: string[], token: string): Promise<void> {
+    try {
+        const octokit = new Octokit({ auth: token });
+        await octokit.pulls.requestReviewers({
+            owner,
+            repo,
+            pull_number: prNumber,
+            reviewers
+        });
+    } catch (error) {
+        throw new Error('Failed to add reviewers to the pull request');
+    }
+}
