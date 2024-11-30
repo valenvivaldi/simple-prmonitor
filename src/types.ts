@@ -36,6 +36,11 @@ export interface GitHubPR {
     reviewers: string | any[];
 }
 
+export interface SyncDates {
+    github?: string;
+    bitbucket?: string;
+}
+
 export type TabType = 'to-review' | 'reviewed' | 'my-prs' | 'gh-reviewers';
 
 export interface Credentials {

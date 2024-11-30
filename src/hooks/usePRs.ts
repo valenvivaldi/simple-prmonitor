@@ -1,15 +1,20 @@
 import {useState, useEffect, useCallback} from 'react';
 import {fetchGithubPRs, fetchBitbucketPRs} from '../services/api';
-import type {PullRequest, Credentials} from '../types';
+import type {PullRequest, Credentials, SyncDates} from '../types';
 import toast from 'react-hot-toast';
-import {updatePRArray} from "../utils.ts";
+import {updatePRArray} from "../utils";
 
 export function usePRs() {
     const [prs, setPRs] = useState<PullRequest[]>(() => {
-        // Load stored PRs on initial render
         const storedPRs = localStorage.getItem('pr-viewer-prs');
         return storedPRs ? JSON.parse(storedPRs) : [];
     });
+    
+    const [lastSyncDates, setLastSyncDates] = useState<SyncDates>(() => {
+        const stored = localStorage.getItem('pr-viewer-last-sync');
+        return stored ? JSON.parse(stored) : {};
+    });
+    
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -21,8 +26,6 @@ export function usePRs() {
             setError(null);
 
             let storedCredentials: Credentials = {};
-
-            // Try to get credentials from Chrome storage first, then fallback to localStorage
             if (typeof chrome !== 'undefined' && chrome.storage) {
                 const result = await chrome.storage.local.get('pr-viewer-credentials');
                 storedCredentials = result['pr-viewer-credentials'] || {};
@@ -33,11 +36,17 @@ export function usePRs() {
 
             const allPRs: PullRequest[] = [];
             const errors: string[] = [];
+            const newSyncDates: SyncDates = {};
 
             if (storedCredentials.github?.token) {
                 try {
-                    const githubPRs = await fetchGithubPRs(storedCredentials.github.token, true);
+                    const githubPRs = await fetchGithubPRs(
+                        storedCredentials.github.token,
+                        true,
+                        lastSyncDates.github
+                    );
                     allPRs.push(...githubPRs);
+                    newSyncDates.github = new Date().toISOString();
                 } catch (err) {
                     const message = `GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
@@ -50,9 +59,11 @@ export function usePRs() {
                     const bitbucketPRs = await fetchBitbucketPRs(
                         storedCredentials.bitbucket.username,
                         storedCredentials.bitbucket.appPassword,
-                        true
+                        true,
+                        lastSyncDates.bitbucket
                     );
                     allPRs.push(...bitbucketPRs);
+                    newSyncDates.bitbucket = new Date().toISOString();
                 } catch (err) {
                     const message = `Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
@@ -65,13 +76,20 @@ export function usePRs() {
             }
 
             if (allPRs.length > 0) {
-                const currentPrs: PullRequest[] = updatePRArray(prs, allPRs);
+                const currentPrs = updatePRArray(prs, allPRs);
                 setPRs(currentPrs);
+                
+                // Update sync dates only for successful fetches
+                setLastSyncDates(prev => ({...prev, ...newSyncDates}));
+                
+                // Store updated data
                 localStorage.setItem('pr-viewer-prs', JSON.stringify(currentPrs));
+                localStorage.setItem('pr-viewer-last-sync', JSON.stringify({...lastSyncDates, ...newSyncDates}));
+                
                 if (typeof chrome !== 'undefined' && chrome.storage) {
                     chrome.storage.local.set({
                         'pr-viewer-prs': currentPrs,
-                        'pr-viewer-last-update': new Date().toISOString()
+                        'pr-viewer-last-sync': {...lastSyncDates, ...newSyncDates}
                     });
                 }
             }
@@ -83,13 +101,11 @@ export function usePRs() {
             if (showLoading) setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [prs, lastSyncDates]);
 
     useEffect(() => {
-        // Initial fetch without loading state
         fetchPRs(false);
 
-        // Set up refresh interval
         const getRefreshInterval = async () => {
             let interval = '5';
             if (typeof chrome !== 'undefined' && chrome.storage) {
