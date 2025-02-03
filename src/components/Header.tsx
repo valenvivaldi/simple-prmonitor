@@ -16,6 +16,7 @@ interface HeaderProps {
     showOnlyOpen: boolean;
     setShowOnlyOpen: (value: boolean) => void;
     hasGithubToken: boolean;
+    hasBitbucketCreds: boolean;
 }
 
 export function Header({
@@ -30,13 +31,14 @@ export function Header({
     refreshing,
     showOnlyOpen,
     setShowOnlyOpen,
-    hasGithubToken
+    hasGithubToken,
+    hasBitbucketCreds
 }: HeaderProps) {
     const tabs: { id: TabType; name: string; enabled: boolean }[] = [
-        { id: 'to-review', name: 'To Review', enabled: true },
-        { id: 'reviewed', name: 'Reviewed', enabled: true },
+        { id: 'reviews', name: 'To Review', enabled: true },
         { id: 'my-prs', name: 'My PRs', enabled: true },
-        { id: 'gh-reviewers', name: 'GH Reviewers', enabled: hasGithubToken }
+        { id: 'gh-reviewers', name: 'GH Reviewers', enabled: hasGithubToken },
+        { id: 'bb-whitelist', name: 'BB Whitelist', enabled: hasBitbucketCreds }
     ];
 
     return (
@@ -64,7 +66,7 @@ export function Header({
                     </div>
 
                     <div className="flex items-center space-x-4">
-                        {currentTab !== 'gh-reviewers' && (
+                        {currentTab !== 'gh-reviewers' && currentTab !== 'bb-whitelist' && (
                             <>
                                 <label className="inline-flex items-center">
                                     <input

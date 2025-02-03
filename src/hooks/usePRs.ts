@@ -46,7 +46,10 @@ export function usePRs() {
                         lastSyncDates.github
                     );
                     allPRs.push(...githubPRs);
-                    newSyncDates.github = new Date().toISOString();
+                    // Set sync date to start of current day
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    newSyncDates.github = today.toISOString();
                 } catch (err) {
                     const message = `GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
@@ -63,7 +66,10 @@ export function usePRs() {
                         lastSyncDates.bitbucket
                     );
                     allPRs.push(...bitbucketPRs);
-                    newSyncDates.bitbucket = new Date().toISOString();
+                    // Set sync date to start of current day
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    newSyncDates.bitbucket = today.toISOString();
                 } catch (err) {
                     const message = `Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
@@ -102,26 +108,6 @@ export function usePRs() {
             setRefreshing(false);
         }
     }, [prs, lastSyncDates]);
-
-    useEffect(() => {
-        fetchPRs(false);
-
-        const getRefreshInterval = async () => {
-            let interval = '5';
-            if (typeof chrome !== 'undefined' && chrome.storage) {
-                const result = await chrome.storage.local.get('pr-viewer-refresh-interval');
-                interval = result['pr-viewer-refresh-interval'] || '5';
-            } else {
-                interval = localStorage.getItem('pr-viewer-refresh-interval') || '5';
-            }
-            return parseInt(interval) * 60 * 1000;
-        };
-
-        getRefreshInterval().then(interval => {
-            const intervalId = setInterval(() => fetchPRs(false), interval);
-            return () => clearInterval(intervalId);
-        });
-    }, [fetchPRs]);
 
     const refresh = () => {
         if (!refreshing) {

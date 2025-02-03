@@ -41,6 +41,7 @@ export async function fetchBitbucketPRs(
             'Content-Type': 'application/json',
         };
 
+        // Get user data for reviewer checks
         const userResponse = await fetchWithRetry(
             'https://api.bitbucket.org/2.0/user',
             { headers }
@@ -48,83 +49,112 @@ export async function fetchBitbucketPRs(
         const userData = await userResponse.json();
         const user_id = userData?.account_id;
 
-        const workspacesResponse = await fetchWithRetry(
-            'https://api.bitbucket.org/2.0/workspaces',
-            { headers }
-        );
-        const workspacesData = await workspacesResponse.json();
+        // Get whitelisted repositories
+        const whitelistedRepos = JSON.parse(localStorage.getItem('bb-whitelisted-repos') || '[]');
+        if (whitelistedRepos.length === 0) {
+            console.log('No whitelisted repositories found');
+            return [];
+        }
+
+        console.log(`Fetching PRs for ${whitelistedRepos.length} whitelisted repositories`);
         const allPRs: PullRequest[] = [];
 
-        // Process workspaces in chunks to avoid overwhelming the API
+        // Process repositories in chunks to avoid overwhelming the API
         const chunkSize = 3;
-        for (let i = 0; i < workspacesData.values.length; i += chunkSize) {
-            const workspaceChunk = workspacesData.values.slice(i, i + chunkSize);
+        for (let i = 0; i < whitelistedRepos.length; i += chunkSize) {
+            const repoChunk = whitelistedRepos.slice(i, i + chunkSize);
+            console.log(`Processing chunk ${i / chunkSize + 1} of ${Math.ceil(whitelistedRepos.length / chunkSize)}`);
             
-            const workspacePromises = workspaceChunk.map(async (workspace: BitbucketWorkspace) => {
+            const repoPromises = repoChunk.map(async (fullName: string) => {
                 try {
-                    const reposResponse = await fetchWithRetry(
-                        `https://api.bitbucket.org/2.0/repositories/${workspace.slug}`,
-                        { headers }
-                    );
-                    const reposData = await reposResponse.json();
+                    // Build URL with query parameters
+                    const queryParams = new URLSearchParams();
+                    
+                    if (lastSync) {
+                        // Convert lastSync to start of day for date-only comparison
+                        const syncDate = new Date(lastSync);
+                        syncDate.setHours(0, 0, 0, 0);
+                        queryParams.append('q', `updated_on > "${syncDate.toISOString()}"`);
+                    }
+                    
+                    if (onlyOpen) {
+                        const stateQuery = 'state = "OPEN"';
+                        queryParams.set('q', lastSync 
+                            ? `${queryParams.get('q')} AND ${stateQuery}`
+                            : stateQuery
+                        );
+                    }
+                    
+                    // Add pagination parameters
+                    queryParams.append('pagelen', '50');
+                    
+                    const baseUrl = `https://api.bitbucket.org/2.0/repositories/${fullName}/pullrequests`;
+                    const url = queryParams.toString() 
+                        ? `${baseUrl}?${queryParams.toString()}`
+                        : baseUrl;
 
-                    const repoPromises = reposData.values.map(async (repo: BitbucketRepo) => {
-                        try {
-                            let url = `https://api.bitbucket.org/2.0/repositories/${repo.full_name}/pullrequests`;
-                            if (lastSync) {
-                                url += `?q=updated_on > ${lastSync}`;
-                            }
-                            if (onlyOpen) {
-                                url += `${lastSync ? ' AND ' : '?q='}state = "OPEN"`;
-                            }
+                    console.log(`Fetching PRs from ${fullName}`);
+                    const prResponse = await fetchWithRetry(url, { headers });
+                    const prData = await prResponse.json();
 
-                            const prResponse = await fetchWithRetry(url, { headers });
-                            const prData = await prResponse.json();
+                    if (!prData.values) {
+                        console.warn(`No PRs found for ${fullName}`);
+                        return [];
+                    }
 
-                            return prData.values.map((pull: BitbucketPR) => ({
-                                id: String(pull.id),
-                                title: pull.title,
-                                description: pull.description || '',
-                                author: {
-                                    name: pull.author.display_name,
-                                    avatar: pull.author.links.avatar.href,
-                                },
-                                repository: pull.destination.repository.full_name,
-                                branch: pull.source.branch.name,
-                                status: pull.state === 'MERGED' ? 'merged' : 'open',
-                                comments: pull.comment_count,
-                                commits: pull.commits?.length || 0,
-                                created: pull.created_on,
-                                updated: pull.updated_on,
-                                source: 'bitbucket' as const,
-                                url: pull.links.html.href,
-                                imReviewer: pull.reviewers?.some(reviewer => reviewer.account_id === user_id) || false,
-                                reviewed: pull.reviewers?.length === 0,
-                                isOwner: pull.author.account_id === user_id
-                            }));
-                        } catch (error) {
-                            console.error(`Error fetching PRs for ${repo.full_name}:`, error);
-                            return [];
-                        }
+                    console.log(`Found ${prData.values.length} PRs in ${fullName}`);
+                    return prData.values.map((pull: BitbucketPR) => {
+                        // Check if user is a reviewer
+                        const isReviewer = pull.reviewers?.some(reviewer => reviewer.account_id === user_id) || false;
+                        
+                        // Check if user has approved the PR
+                        const hasApproved = pull.participants?.some(participant => 
+                            participant.account_id === user_id && 
+                            participant.approved
+                        ) || false;
+
+                        return {
+                            id: String(pull.id),
+                            title: pull.title,
+                            description: pull.description || '',
+                            author: {
+                                name: pull.author.display_name,
+                                avatar: pull.author.links.avatar.href,
+                            },
+                            repository: pull.destination.repository.full_name,
+                            branch: pull.source.branch.name,
+                            status: pull.state === 'MERGED' 
+                                ? 'merged' 
+                                : pull.state === 'DECLINED' 
+                                    ? 'closed' 
+                                    : 'open',
+                            comments: pull.comment_count,
+                            commits: pull.commits?.length || 0,
+                            created: pull.created_on,
+                            updated: pull.updated_on,
+                            source: 'bitbucket' as const,
+                            url: pull.links.html.href,
+                            imReviewer: isReviewer,
+                            reviewed: hasApproved,
+                            isOwner: pull.author.account_id === user_id
+                        };
                     });
-
-                    const repoPRs = await Promise.all(repoPromises);
-                    return repoPRs.flat();
                 } catch (error) {
-                    console.error(`Error processing workspace ${workspace.slug}:`, error);
+                    console.error(`Error fetching PRs for ${fullName}:`, error);
                     return [];
                 }
             });
 
-            const workspacePRs = await Promise.all(workspacePromises);
-            workspacePRs.forEach(prs => allPRs.push(...prs));
+            const repoPRs = await Promise.all(repoPromises);
+            repoPRs.forEach(prs => allPRs.push(...prs));
 
-            // Add delay between workspace chunks
-            if (i + chunkSize < workspacesData.values.length) {
+            // Add delay between chunks to avoid rate limiting
+            if (i + chunkSize < whitelistedRepos.length) {
                 await delay(200);
             }
         }
 
+        console.log(`Total PRs fetched: ${allPRs.length}`);
         return allPRs;
     } catch (error) {
         console.error('Error in fetchBitbucketPRs:', error);

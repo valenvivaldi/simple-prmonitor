@@ -18,6 +18,11 @@ export interface BitbucketRepo {
     full_name: string;
 }
 
+export interface BitbucketParticipant {
+    account_id: string;
+    approved: boolean;
+}
+
 export interface BitbucketPR {
     id: number;
     title: string;
@@ -44,4 +49,5 @@ export interface BitbucketPR {
         };
     };
     reviewers: BitbucketUser[];
+    participants: BitbucketParticipant[];
 }

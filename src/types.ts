@@ -41,7 +41,7 @@ export interface SyncDates {
     bitbucket?: string;
 }
 
-export type TabType = 'to-review' | 'reviewed' | 'my-prs' | 'gh-reviewers';
+export type TabType = 'reviews' | 'my-prs' | 'gh-reviewers' | 'bb-whitelist';
 
 export interface Credentials {
     github?: {
@@ -55,7 +55,6 @@ export interface Credentials {
 
 export interface Settings {
     showOnlyOpen: boolean;
-    refreshInterval: string;
     credentials: Credentials;
 }
 
@@ -69,4 +68,10 @@ export interface ReviewersList {
     id: string;
     name: string;
     users: GithubUser[];
+}
+
+export interface BitbucketRepo {
+    workspace: string;
+    repo: string;
+    fullName: string;
 }

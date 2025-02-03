@@ -3,13 +3,14 @@ import {Header} from './components/Header';
 import {PRList} from './components/PRList';
 import {SettingsModal} from './components/SettingsModal';
 import {GHReviewers} from './components/reviewers/GHReviewers';
+import {BitbucketWhitelist} from './components/BitbucketWhitelist';
 import {usePRs} from './hooks/usePRs';
 import {Toaster} from 'react-hot-toast';
 import type {TabType, Credentials} from './types';
 
 export function App() {
     const {prs, loading, refreshing, refresh} = usePRs();
-    const [currentTab, setCurrentTab] = useState<TabType>('to-review');
+    const [currentTab, setCurrentTab] = useState<TabType>('reviews');
     const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set(['github', 'bitbucket']));
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -40,10 +41,8 @@ export function App() {
         .filter(pr => !showOnlyOpen || pr.status === 'open')
         .filter(pr => {
             switch (currentTab) {
-                case 'to-review':
-                    return !pr.reviewed && !pr.isOwner && pr.imReviewer;
-                case 'reviewed':
-                    return pr.reviewed && !pr.isOwner;
+                case 'reviews':
+                    return !pr.isOwner && pr.imReviewer;
                 case 'my-prs':
                     return pr.isOwner;
                 default:
@@ -81,10 +80,13 @@ export function App() {
                     }
                 }}
                 hasGithubToken={Boolean(credentials.github?.token)}
+                hasBitbucketCreds={Boolean(credentials.bitbucket?.username && credentials.bitbucket?.appPassword)}
             />
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {currentTab === 'gh-reviewers' && credentials.github?.token ? (
                     <GHReviewers githubToken={credentials.github.token}/>
+                ) : currentTab === 'bb-whitelist' && credentials.bitbucket ? (
+                    <BitbucketWhitelist credentials={credentials.bitbucket}/>
                 ) : (
                     <PRList 
                         prs={filteredPRs} 
@@ -101,4 +103,5 @@ export function App() {
         </div>
     );
 }
-export default App;
+
+export default App
