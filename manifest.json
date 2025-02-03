@@ -4,8 +4,7 @@
   "version": "0.0.1",
   "description": "View and manage your pull requests from GitHub and Bitbucket.",
   "permissions": [
-    "storage",
-    "alarms"
+    "storage"
   ],
   "background": {
     "service_worker": "background.js"
