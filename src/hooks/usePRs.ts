@@ -21,9 +21,9 @@ export function usePRs() {
 
     const fetchPRs = useCallback(async (showLoading = false) => {
         try {
-            if (showLoading) setLoading(true);
             setRefreshing(true);
             setError(null);
+            toast.loading('Actualizando...', { id: 'refresh-toast' });
 
             let storedCredentials: Credentials = {};
             if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -99,19 +99,19 @@ export function usePRs() {
                     });
                 }
             }
+            toast.success('Actualización completada', { id: 'refresh-toast' });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to fetch PRs';
             setError(message);
-            toast.error(message);
+            toast.error(message, { id: 'refresh-toast' });
         } finally {
-            if (showLoading) setLoading(false);
             setRefreshing(false);
         }
     }, [prs, lastSyncDates]);
 
     const refresh = () => {
         if (!refreshing) {
-            fetchPRs(true);
+            fetchPRs(false);
         }
     };
 
