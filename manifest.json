@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pull Request Manager for GitHub and Bitbucket",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "View and manage your pull requests from GitHub and Bitbucket.",
   "permissions": [
     "storage"

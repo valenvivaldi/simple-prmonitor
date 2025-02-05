@@ -149,7 +149,7 @@ export function SettingsModal({ isOpen, onClose, showOnlyOpen, setShowOnlyOpen }
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <Disclosure defaultOpen>
+            <Disclosure >
               {({ open }) => (
                 <>
                   <Disclosure.Button className="flex w-full justify-between rounded-lg bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75">
@@ -194,7 +194,7 @@ export function SettingsModal({ isOpen, onClose, showOnlyOpen, setShowOnlyOpen }
               )}
             </Disclosure>
 
-            <Disclosure defaultOpen>
+            <Disclosure >
               {({ open }) => (
                 <>
                   <Disclosure.Button className="flex w-full justify-between rounded-lg bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75">
@@ -219,7 +219,7 @@ export function SettingsModal({ isOpen, onClose, showOnlyOpen, setShowOnlyOpen }
               )}
             </Disclosure>
 
-            <Disclosure defaultOpen>
+            <Disclosure >
               {({ open }) => (
                 <>
                   <Disclosure.Button className="flex w-full justify-between rounded-lg bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75">
@@ -247,7 +247,7 @@ export function SettingsModal({ isOpen, onClose, showOnlyOpen, setShowOnlyOpen }
               )}
             </Disclosure>
 
-            <Disclosure defaultOpen>
+            <Disclosure >
               {({ open }) => (
                 <>
                   <Disclosure.Button className="flex w-full justify-between rounded-lg bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75">
