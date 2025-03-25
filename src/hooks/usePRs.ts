@@ -38,18 +38,25 @@ export function usePRs() {
             const errors: string[] = [];
             const newSyncDates: SyncDates = {};
 
+            // Function to get date 24 hours before the last sync
+            const get24HoursBeforeSync = (lastSyncDate?: string) => {
+                if (!lastSyncDate) return undefined;
+                const date = new Date(lastSyncDate);
+                date.setHours(date.getHours() - 24);
+                return date.toISOString();
+            };
+
             if (storedCredentials.github?.token) {
                 try {
+                    const githubLastSync = get24HoursBeforeSync(lastSyncDates.github);
                     const githubPRs = await fetchGithubPRs(
                         storedCredentials.github.token,
                         true,
-                        lastSyncDates.github
+                        githubLastSync
                     );
                     allPRs.push(...githubPRs);
-                    // Set sync date to start of current day
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    newSyncDates.github = today.toISOString();
+                    // Set sync date to current time
+                    newSyncDates.github = new Date().toISOString();
                 } catch (err) {
                     const message = `GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
@@ -59,17 +66,16 @@ export function usePRs() {
 
             if (storedCredentials.bitbucket?.username && storedCredentials.bitbucket?.appPassword) {
                 try {
+                    const bitbucketLastSync = get24HoursBeforeSync(lastSyncDates.bitbucket);
                     const bitbucketPRs = await fetchBitbucketPRs(
                         storedCredentials.bitbucket.username,
                         storedCredentials.bitbucket.appPassword,
                         true,
-                        lastSyncDates.bitbucket
+                        bitbucketLastSync
                     );
                     allPRs.push(...bitbucketPRs);
-                    // Set sync date to start of current day
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    newSyncDates.bitbucket = today.toISOString();
+                    // Set sync date to current time
+                    newSyncDates.bitbucket = new Date().toISOString();
                 } catch (err) {
                     const message = `Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`;
                     errors.push(message);
