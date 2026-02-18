@@ -15,6 +15,8 @@ interface HeaderProps {
     refreshing: boolean;
     showOnlyOpen: boolean;
     setShowOnlyOpen: (value: boolean) => void;
+    groupByBranch: boolean;
+    setGroupByBranch: (value: boolean) => void;
     hasGithubToken: boolean;
     hasBitbucketCreds: boolean;
 }
@@ -31,6 +33,8 @@ export function Header({
     refreshing,
     showOnlyOpen,
     setShowOnlyOpen,
+    groupByBranch,
+    setGroupByBranch,
     hasGithubToken,
     hasBitbucketCreds
 }: HeaderProps) {
@@ -76,6 +80,15 @@ export function Header({
                                         className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                                     />
                                     <span className="ml-2 text-sm text-gray-600">Show only open PRs</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={groupByBranch}
+                                        onChange={(e) => setGroupByBranch(e.target.checked)}
+                                        className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-600">Group by branch</span>
                                 </label>
                                 <PlatformFilter
                                     selectedPlatforms={selectedPlatforms}

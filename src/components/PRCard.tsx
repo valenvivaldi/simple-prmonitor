@@ -1,8 +1,11 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { GitPullRequest, MessageSquare, GitCommit, Github } from 'lucide-react';
+import { GitPullRequest, MessageSquare, GitCommit, Github, CheckCircle2, XCircle, Clock, Users } from 'lucide-react';
+import { Popover } from '@headlessui/react';
 import { AddReviewersPopover } from './AddReviewersPopover';
-import type { PullRequest } from '../types';
+import { useReviewerLists } from '../hooks/useReviewerLists';
+import toast from 'react-hot-toast';
+import type { PullRequest, ReviewerStatus } from '../types';
 
 interface PRCardProps {
   pr: PullRequest;
@@ -15,7 +18,22 @@ const statusColors = {
   closed: 'bg-red-100 text-red-800',
 };
 
+  const reviewerRingColors: Record<string, string> = {
+  approved: 'ring-green-400',
+  pending: 'ring-yellow-400',
+  changes_requested: 'ring-red-400',
+  commented: 'ring-gray-400'
+};
+
+const reviewerLabel: Record<string, string> = {
+  approved: 'Approved',
+  pending: 'Pending',
+  changes_requested: 'Changes requested',
+  commented: 'Commented'
+};
+
 export function PRCard({ pr, githubToken }: PRCardProps) {
+  const { lists, updateList } = useReviewerLists();
   // Extract owner and repo from repository string (format: "owner/repo")
   const [owner, repo] = pr.repository.split('/');
   // Extract PR number from URL (format: "https://github.com/owner/repo/pull/123")
@@ -55,6 +73,82 @@ export function PRCard({ pr, githubToken }: PRCardProps) {
       <div className="mt-4">
         <p className="text-gray-600 text-sm line-clamp-2">{pr.description}</p>
       </div>
+
+      {(pr.reviewers?.length || (pr.checks && pr.source === 'github')) && (
+        <div className="mt-4 flex items-center justify-between">
+          {pr.reviewers && pr.reviewers.length > 0 && (
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-500">Reviewers</span>
+              <div className="flex items-center -space-x-2">
+                {pr.reviewers.map((reviewer: ReviewerStatus) => (
+                  <Popover key={reviewer.login} className="relative inline-block">
+                    <Popover.Button title={`Add ${reviewer.login} to reviewer list`}>
+                      <img
+                        src={reviewer.avatar || `https://github.com/${reviewer.login}.png`}
+                        alt={reviewer.login}
+                        title={`${reviewer.login} • ${reviewerLabel[reviewer.state]}`}
+                        className={`w-6 h-6 rounded-full ring-2 ring-white ${reviewerRingColors[reviewer.state] || 'ring-gray-300'}`}
+                      />
+                    </Popover.Button>
+
+                    <Popover.Panel className="absolute z-50 mt-2 w-52 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 left-0">
+                      <div className="p-2">
+                        <div className="text-sm text-gray-700 mb-2">Add <strong>{reviewer.login}</strong> to list</div>
+                        {lists.length === 0 ? (
+                          <div className="text-xs text-gray-500">No lists defined. Create one in GH Reviewers.</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {lists.map(list => (
+                              <button
+                                key={list.id}
+                                onClick={() => {
+                                  try {
+                                    const exists = list.users.some(u => u.login === reviewer.login);
+                                    if (exists) {
+                                      toast('User already in list');
+                                      return;
+                                    }
+                                    const newUsers = [...list.users, { login: reviewer.login, name: reviewer.name || reviewer.login, avatar_url: reviewer.avatar || `https://github.com/${reviewer.login}.png` }];
+                                    updateList({ ...list, users: newUsers });
+                                    toast.success(`Added ${reviewer.login} to ${list.name}`);
+                                  } catch (err) {
+                                    toast.error('Failed to add reviewer to list');
+                                  }
+                                }}
+                                className="w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-100"
+                              >
+                                <Users className="w-4 h-4 inline-block mr-2 text-gray-500" />
+                                {list.name}
+                                <span className="ml-2 text-xs text-gray-400">{list.users.length}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Popover.Panel>
+                  </Popover>
+                ))}
+              </div>
+            </div>
+          )}
+          {pr.checks && pr.source === 'github' && (
+            <div className="flex items-center space-x-3 text-xs text-gray-600">
+              <div className="flex items-center space-x-1">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span>{pr.checks.success}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span>{pr.checks.failed}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Clock className="w-4 h-4 text-yellow-600" />
+                <span>{pr.checks.pending}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">

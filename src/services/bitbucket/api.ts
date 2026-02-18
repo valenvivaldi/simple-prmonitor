@@ -136,7 +136,9 @@ export async function fetchBitbucketPRs(
                             url: pull.links.html.href,
                             imReviewer: isReviewer,
                             reviewed: hasApproved,
-                            isOwner: pull.author.account_id === user_id
+                            isOwner: pull.author.account_id === user_id,
+                            reviewers: [],
+                            checks: null
                         };
                     });
                 } catch (error) {

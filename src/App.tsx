@@ -22,6 +22,10 @@ export function App() {
         const stored = localStorage.getItem('pr-viewer-show-only-open');
         return stored ? JSON.parse(stored) : true;
     });
+    const [groupByBranch, setGroupByBranch] = useState(() => {
+        const stored = localStorage.getItem('pr-viewer-group-by-branch');
+        return stored ? JSON.parse(stored) : false;
+    });
 
     useEffect(() => {
         const loadCredentials = async () => {
@@ -79,6 +83,14 @@ export function App() {
                         chrome.storage.local.set({'pr-viewer-show-only-open': value});
                     }
                 }}
+                groupByBranch={groupByBranch}
+                setGroupByBranch={(value) => {
+                    setGroupByBranch(value);
+                    localStorage.setItem('pr-viewer-group-by-branch', JSON.stringify(value));
+                    if (typeof chrome !== 'undefined' && chrome.storage) {
+                        chrome.storage.local.set({'pr-viewer-group-by-branch': value});
+                    }
+                }}
                 hasGithubToken={Boolean(credentials.github?.token)}
                 hasBitbucketCreds={Boolean(credentials.bitbucket?.username && credentials.bitbucket?.appPassword)}
             />
@@ -91,6 +103,7 @@ export function App() {
                     <PRList 
                         prs={filteredPRs} 
                         githubToken={credentials.github?.token}
+                        groupByBranch={groupByBranch}
                     />
                 )}
             </main>

@@ -18,6 +18,22 @@ export interface PullRequest {
     imReviewer: boolean;
     reviewed: boolean;
     isOwner: boolean;
+    reviewers?: ReviewerStatus[];
+    checks?: CheckSummary | null;
+}
+
+export interface ReviewerStatus {
+    login: string;
+    name?: string;
+    avatar?: string;
+    state: 'pending' | 'approved' | 'changes_requested' | 'commented';
+}
+
+export interface CheckSummary {
+    total: number;
+    success: number;
+    failed: number;
+    pending: number;
 }
 
 export interface GitHubPR {

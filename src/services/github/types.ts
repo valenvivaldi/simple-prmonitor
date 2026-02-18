@@ -10,6 +10,7 @@ export interface GitHubRepo {
 
 export interface GitHubPR {
     id: number;
+    number: number;
     title: string;
     body: string | null;
     user: {
@@ -18,6 +19,7 @@ export interface GitHubPR {
     } | null;
     head: {
         ref: string;
+        sha: string;
     };
     state: 'open' | 'closed';
     merged: boolean;
@@ -26,7 +28,7 @@ export interface GitHubPR {
     created_at: string;
     updated_at: string;
     html_url: string;
-    requested_reviewers: Array<{ login: string }> | null;
+    requested_reviewers: Array<{ login: string; avatar_url?: string }> | null;
 }
 
 export interface GitHubError {
