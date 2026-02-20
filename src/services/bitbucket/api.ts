@@ -99,6 +99,16 @@ export async function fetchBitbucketPRs(
                             participant.approved
                         ) || false;
 
+                        const reviewers: any[] = (pull.reviewers || []).map(r => {
+                            const participant = pull.participants?.find(p => p.account_id === r.account_id);
+                            return {
+                                login: r.account_id,
+                                name: r.display_name,
+                                avatar: r.links.avatar.href,
+                                state: participant?.approved ? 'approved' : 'pending'
+                            };
+                        });
+
                         return {
                             id: String(pull.id),
                             title: pull.title,
@@ -123,7 +133,7 @@ export async function fetchBitbucketPRs(
                             imReviewer: isReviewer,
                             reviewed: hasApproved,
                             isOwner: pull.author.account_id === user_id,
-                            reviewers: [],
+                            reviewers,
                             checks: null
                         };
                     });

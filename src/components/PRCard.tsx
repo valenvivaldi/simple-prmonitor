@@ -114,16 +114,32 @@ export function PRCard({ pr, githubToken, selected = false, onSelect, onRefresh 
           {pr.reviewers && pr.reviewers.length > 0 && (
             <div className="flex items-center space-x-2">
               <span className="text-xs text-gray-500 dark:text-gray-400">Reviewers</span>
-              <div className="flex items-center -space-x-2">
+              <div className="flex items-center space-x-1">
                 {pr.reviewers.map((reviewer: ReviewerStatus) => (
-                  <Popover key={reviewer.login} className="relative inline-block">
+                    <Popover key={reviewer.login} className="relative inline-block">
                     <Popover.Button title={`Add ${reviewer.login} to reviewer list`}>
-                      <img
-                        src={reviewer.avatar || `https://github.com/${reviewer.login}.png`}
-                        alt={reviewer.login}
-                        title={`${reviewer.login} • ${reviewerLabel[reviewer.state]}`}
-                        className={`w-6 h-6 rounded-full ring-2 ring-white dark:ring-gray-800 ${reviewerRingColors[reviewer.state] || 'ring-gray-300'}`}
-                      />
+                      <div className="relative">
+                        <img
+                          src={reviewer.avatar || `https://github.com/${reviewer.login}.png`}
+                          alt={reviewer.login}
+                          title={`${reviewer.login} • ${reviewerLabel[reviewer.state]}`}
+                          className={`w-8 h-8 rounded-full ring-2 ring-white dark:ring-gray-800 ${reviewerRingColors[reviewer.state] || 'ring-gray-300'}`}
+                        />
+                        {reviewer.state !== 'pending' && (
+                          <div
+                            className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border border-white dark:border-gray-800 flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${
+                              reviewer.state === 'approved' ? 'bg-green-500' :
+                              reviewer.state === 'changes_requested' ? 'bg-red-500' :
+                              'bg-gray-500'
+                            }`}
+                            title={reviewerLabel[reviewer.state]}
+                          >
+                            {reviewer.state === 'approved' ? '✓' :
+                             reviewer.state === 'changes_requested' ? '!' :
+                             'c'}
+                          </div>
+                        )}
+                      </div>
                     </Popover.Button>
 
                     <Popover.Panel className="absolute z-50 mt-2 w-52 bg-white dark:bg-gray-700 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-gray-600 left-0">
