@@ -215,7 +215,7 @@ export async function fetchGithubPRDetails(
     const octokit = new Octokit({ auth: token });
     const { owner, repo, number, head_sha, requested_reviewers } = pr._github_meta;
     
-    const [reviewers, checks, prInfo] = await Promise.all([
+    const [reviewers, checks, combinedStatus, prInfo] = await Promise.all([
         fetchReviewerStatuses(octokit, owner, repo, number, requested_reviewers).catch(() => []),
         retryOperation(() =>
             octokit.checks.listForRef({
@@ -226,6 +226,20 @@ export async function fetchGithubPRDetails(
             })
         ).then(({ data }) => summarizeChecks(data.check_runs || [])).catch(() => null),
         retryOperation(() =>
+            octokit.repos.getCombinedStatusForRef({
+                owner,
+                repo,
+                ref: head_sha
+            })
+        ).then(({ data }) => {
+            if (data.total_count === 0) return null;
+            return summarizeChecks(data.statuses.map(s => ({
+                status: s.state === 'pending' ? 'in_progress' : 'completed',
+                conclusion: s.state === 'success' ? 'success' : 
+                           s.state === 'failure' || s.state === 'error' ? 'failure' : null
+            })));
+        }).catch(() => null),
+        retryOperation(() =>
             octokit.pulls.get({
                 owner,
                 repo,
@@ -234,9 +248,24 @@ export async function fetchGithubPRDetails(
         ).then(({ data }) => data).catch(() => null)
     ]);
 
+    // Merge checks and combinedStatus
+    let finalChecks = checks;
+    if (combinedStatus) {
+        if (!finalChecks) {
+            finalChecks = combinedStatus;
+        } else {
+            finalChecks = {
+                total: finalChecks.total + combinedStatus.total,
+                success: finalChecks.success + combinedStatus.success,
+                failed: finalChecks.failed + combinedStatus.failed,
+                pending: finalChecks.pending + combinedStatus.pending,
+            };
+        }
+    }
+
     return {
         reviewers,
-        checks,
+        checks: finalChecks,
         targetBranch: prInfo?.base?.ref,
         status: prInfo ? (prInfo.merged_at || prInfo.merged ? 'merged' : prInfo.state as 'open' | 'closed') : undefined
     };
