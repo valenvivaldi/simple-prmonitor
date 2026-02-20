@@ -26,6 +26,20 @@ export function App() {
         const stored = localStorage.getItem('pr-viewer-group-by-branch');
         return stored ? JSON.parse(stored) : false;
     });
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const stored = localStorage.getItem('pr-viewer-dark-mode');
+        if (stored !== null) return JSON.parse(stored);
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem('pr-viewer-dark-mode', JSON.stringify(isDarkMode));
+    }, [isDarkMode]);
 
     useEffect(() => {
         const loadCredentials = async () => {
@@ -56,14 +70,14 @@ export function App() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
             <Toaster position="top-right"/>
             <Header
                 currentTab={currentTab}
@@ -76,6 +90,8 @@ export function App() {
                 onRefresh={refresh}
                 refreshing={refreshing}
                 showOnlyOpen={showOnlyOpen}
+                isDarkMode={isDarkMode}
+                setIsDarkMode={setIsDarkMode}
                 setShowOnlyOpen={(value) => {
                     setShowOnlyOpen(value);
                     localStorage.setItem('pr-viewer-show-only-open', JSON.stringify(value));

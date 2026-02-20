@@ -267,6 +267,10 @@ export async function fetchGithubPRDetails(
         reviewers,
         checks: finalChecks,
         targetBranch: prInfo?.base?.ref,
-        status: prInfo ? (prInfo.merged_at || prInfo.merged ? 'merged' : prInfo.state as 'open' | 'closed') : undefined
+        status: prInfo ? (prInfo.merged_at || prInfo.merged ? 'merged' : prInfo.state as 'open' | 'closed') : undefined,
+        _github_meta: {
+            ...pr._github_meta,
+            requested_reviewers: prInfo?.requested_reviewers || requested_reviewers
+        }
     };
 }
