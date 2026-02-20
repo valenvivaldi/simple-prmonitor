@@ -21,8 +21,12 @@ export interface GitHubPR {
         ref: string;
         sha: string;
     };
+    base: {
+        ref: string;
+    };
     state: 'open' | 'closed';
     merged: boolean;
+    merged_at: string | null;
     comments: number;
     commits: number;
     created_at: string;

@@ -20,6 +20,8 @@ export interface PullRequest {
     isOwner: boolean;
     reviewers?: ReviewerStatus[];
     checks?: CheckSummary | null;
+    targetBranch?: string;
+    _github_meta?: any;
 }
 
 export interface ReviewerStatus {

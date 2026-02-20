@@ -1,10 +1,16 @@
-import {useState, useEffect, useCallback} from 'react';
-import {fetchGithubPRs, fetchBitbucketPRs} from '../services/api';
+import {useState, useEffect, useCallback, useRef} from 'react';
+import {
+    fetchGithubPRs,
+    fetchBitbucketPRs,
+    fetchGithubPRDetails,
+    fetchBitbucketPRDetails
+} from '../services/api';
 import type {PullRequest, Credentials, SyncDates} from '../types';
 import toast from 'react-hot-toast';
 import {updatePRArray} from "../utils";
 
 export function usePRs() {
+    const prsRef = useRef<PullRequest[]>([]);
     const [prs, setPRs] = useState<PullRequest[]>(() => {
         const storedPRs = localStorage.getItem('pr-viewer-prs');
         return storedPRs ? JSON.parse(storedPRs) : [];
@@ -19,11 +25,47 @@ export function usePRs() {
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Keep ref in sync with state
+    useEffect(() => {
+        prsRef.current = prs;
+    }, [prs]);
+
+    const fetchPRDetailsIncremental = async (pr: PullRequest, credentials: Credentials) => {
+        try {
+            let details: Partial<PullRequest> = {};
+            if (pr.source === 'github' && credentials.github?.token) {
+                details = await fetchGithubPRDetails(credentials.github.token, pr);
+            } else if (pr.source === 'bitbucket' && credentials.bitbucket?.username && credentials.bitbucket?.appPassword) {
+                details = await fetchBitbucketPRDetails(credentials.bitbucket.username, credentials.bitbucket.appPassword, pr);
+            }
+
+            if (Object.keys(details).length > 0) {
+                setPRs(prevPRs => {
+                    const newPRs = prevPRs.map(p => 
+                        p.id === pr.id && p.source === pr.source 
+                            ? { ...p, ...details } 
+                            : p
+                    );
+                    
+                    // Persist incremental update
+                    localStorage.setItem('pr-viewer-prs', JSON.stringify(newPRs));
+                    if (typeof chrome !== 'undefined' && chrome.storage) {
+                        chrome.storage.local.set({ 'pr-viewer-prs': newPRs });
+                    }
+                    
+                    return newPRs;
+                });
+            }
+        } catch (err) {
+            console.error(`Error fetching details for PR ${pr.id}:`, err);
+        }
+    };
+
     const fetchPRs = useCallback(async (showLoading = false) => {
         try {
             setRefreshing(true);
             setError(null);
-            toast.loading('Actualizando...', { id: 'refresh-toast' });
+            toast.loading('Actualizando lista...', { id: 'refresh-toast' });
 
             let storedCredentials: Credentials = {};
             if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -34,11 +76,10 @@ export function usePRs() {
                 storedCredentials = stored ? JSON.parse(stored) : {};
             }
 
-            const allPRs: PullRequest[] = [];
+            const allNewPRs: PullRequest[] = [];
             const errors: string[] = [];
             const newSyncDates: SyncDates = {};
 
-            // Function to get date 24 hours before the last sync
             const get24HoursBeforeSync = (lastSyncDate?: string) => {
                 if (!lastSyncDate) return undefined;
                 const date = new Date(lastSyncDate);
@@ -46,6 +87,7 @@ export function usePRs() {
                 return date.toISOString();
             };
 
+            // 1. Fetch Lists (GitHub)
             if (storedCredentials.github?.token) {
                 try {
                     const githubLastSync = get24HoursBeforeSync(lastSyncDates.github);
@@ -54,8 +96,7 @@ export function usePRs() {
                         true,
                         githubLastSync
                     );
-                    allPRs.push(...githubPRs);
-                    // Set sync date to current time
+                    allNewPRs.push(...githubPRs);
                     newSyncDates.github = new Date().toISOString();
                 } catch (err) {
                     const message = `GitHub: ${err instanceof Error ? err.message : 'Unknown error'}`;
@@ -64,6 +105,7 @@ export function usePRs() {
                 }
             }
 
+            // 2. Fetch Lists (Bitbucket)
             if (storedCredentials.bitbucket?.username && storedCredentials.bitbucket?.appPassword) {
                 try {
                     const bitbucketLastSync = get24HoursBeforeSync(lastSyncDates.bitbucket);
@@ -73,8 +115,7 @@ export function usePRs() {
                         true,
                         bitbucketLastSync
                     );
-                    allPRs.push(...bitbucketPRs);
-                    // Set sync date to current time
+                    allNewPRs.push(...bitbucketPRs);
                     newSyncDates.bitbucket = new Date().toISOString();
                 } catch (err) {
                     const message = `Bitbucket: ${err instanceof Error ? err.message : 'Unknown error'}`;
@@ -87,14 +128,14 @@ export function usePRs() {
                 setError(errors.join('\n'));
             }
 
-            if (allPRs.length > 0) {
-                const currentPrs = updatePRArray(prs, allPRs);
+            // 3. Update UI with List immediately
+            let currentPrs = prsRef.current;
+            if (allNewPRs.length > 0) {
+                currentPrs = updatePRArray(prsRef.current, allNewPRs);
                 setPRs(currentPrs);
                 
-                // Update sync dates only for successful fetches
                 setLastSyncDates(prev => ({...prev, ...newSyncDates}));
                 
-                // Store updated data
                 localStorage.setItem('pr-viewer-prs', JSON.stringify(currentPrs));
                 localStorage.setItem('pr-viewer-last-sync', JSON.stringify({...lastSyncDates, ...newSyncDates}));
                 
@@ -104,8 +145,25 @@ export function usePRs() {
                         'pr-viewer-last-sync': {...lastSyncDates, ...newSyncDates}
                     });
                 }
+                toast.success('Lista actualizada. Cargando detalles...', { id: 'refresh-toast' });
+            } else {
+                toast.success('No hay nuevos PRs', { id: 'refresh-toast' });
             }
-            toast.success('Actualización completada', { id: 'refresh-toast' });
+
+            // 4. Fetch Details in parallel (Incremental)
+            // We only fetch details for PRs that were either just added or updated
+            const prsToUpdate = allNewPRs.length > 0 ? allNewPRs : currentPrs;
+            
+            // Limit concurrency to 5 at a time
+            const chunkSize = 5;
+            for (let i = 0; i < prsToUpdate.length; i += chunkSize) {
+                const chunk = prsToUpdate.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(pr => fetchPRDetailsIncremental(pr, storedCredentials)));
+            }
+
+            if (allNewPRs.length > 0) {
+                toast.success('Actualización completa', { id: 'refresh-toast' });
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to fetch PRs';
             setError(message);
@@ -113,7 +171,7 @@ export function usePRs() {
         } finally {
             setRefreshing(false);
         }
-    }, [prs, lastSyncDates]);
+    }, [lastSyncDates]);
 
     const refresh = () => {
         if (!refreshing) {
@@ -121,5 +179,20 @@ export function usePRs() {
         }
     };
 
-    return {prs, loading, error, refreshing, refresh};
+    const refreshPR = async (pr: PullRequest) => {
+        let storedCredentials: Credentials = {};
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            const result = await chrome.storage.local.get('pr-viewer-credentials');
+            storedCredentials = result['pr-viewer-credentials'] || {};
+        } else {
+            const stored = localStorage.getItem('pr-viewer-credentials');
+            storedCredentials = stored ? JSON.parse(stored) : {};
+        }
+        
+        toast.loading(`Actualizando ${pr.title}...`, { id: `refresh-pr-${pr.id}` });
+        await fetchPRDetailsIncremental(pr, storedCredentials);
+        toast.success('PR actualizado', { id: `refresh-pr-${pr.id}` });
+    };
+
+    return {prs, loading, error, refreshing, refresh, refreshPR};
 }

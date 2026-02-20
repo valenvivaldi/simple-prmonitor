@@ -1,2 +1,2 @@
-export { fetchGithubPRs } from './github/api';
-export { fetchBitbucketPRs } from './bitbucket/api';
+export { fetchGithubPRs, fetchGithubPRDetails } from './github/api';
+export { fetchBitbucketPRs, fetchBitbucketPRDetails } from './bitbucket/api';

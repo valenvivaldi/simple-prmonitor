@@ -9,7 +9,7 @@ import {Toaster} from 'react-hot-toast';
 import type {TabType, Credentials} from './types';
 
 export function App() {
-    const {prs, loading, refreshing, refresh} = usePRs();
+    const {prs, loading, refreshing, refresh, refreshPR} = usePRs();
     const [currentTab, setCurrentTab] = useState<TabType>('reviews');
     const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set(['github', 'bitbucket']));
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -104,6 +104,7 @@ export function App() {
                         prs={filteredPRs} 
                         githubToken={credentials.github?.token}
                         groupByBranch={groupByBranch}
+                        onRefreshPR={refreshPR}
                     />
                 )}
             </main>

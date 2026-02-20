@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { GitPullRequest, MessageSquare, GitCommit, Github, CheckCircle2, XCircle, Clock, Users } from 'lucide-react';
+import { GitPullRequest, MessageSquare, GitCommit, Github, CheckCircle2, XCircle, Clock, Users, RefreshCw } from 'lucide-react';
 import { Popover } from '@headlessui/react';
 import { AddReviewersPopover } from './AddReviewersPopover';
 import { useReviewerLists } from '../hooks/useReviewerLists';
@@ -10,6 +10,9 @@ import type { PullRequest, ReviewerStatus } from '../types';
 interface PRCardProps {
   pr: PullRequest;
   githubToken?: string;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
+  onRefresh?: () => Promise<void>;
 }
 
 const statusColors = {
@@ -32,17 +35,36 @@ const reviewerLabel: Record<string, string> = {
   commented: 'Commented'
 };
 
-export function PRCard({ pr, githubToken }: PRCardProps) {
+export function PRCard({ pr, githubToken, selected = false, onSelect, onRefresh }: PRCardProps) {
   const { lists, updateList } = useReviewerLists();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   // Extract owner and repo from repository string (format: "owner/repo")
   const [owner, repo] = pr.repository.split('/');
   // Extract PR number from URL (format: "https://github.com/owner/repo/pull/123")
   const prNumber = parseInt(pr.url.split('/pull/')[1], 10);
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-200">
+    <div className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border ${selected ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center space-x-3">
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-2"
+            />
+          )}
           <div className="flex-shrink-0">
             <img
               src={pr.author.avatar}
@@ -61,13 +83,28 @@ export function PRCard({ pr, githubToken }: PRCardProps) {
             </p>
           </div>
         </div>
-        {pr.source === 'github' ? (
-          <Github className="w-5 h-5 text-gray-500" />
-        ) : (
-          <div className="w-5 h-5 flex items-center justify-center rounded-sm bg-blue-500 text-white font-semibold text-xs">
-            B
-          </div>
-        )}
+        <div className="flex items-center space-x-2">
+          {onRefresh && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRefresh();
+              }}
+              disabled={isRefreshing}
+              className={`p-1 rounded-full hover:bg-gray-100 transition-colors ${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-400 hover:text-blue-500'}`}
+              title="Refresh PR details"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+          {pr.source === 'github' ? (
+            <Github className="w-5 h-5 text-gray-500" />
+          ) : (
+            <div className="w-5 h-5 flex items-center justify-center rounded-sm bg-blue-500 text-white font-semibold text-xs">
+              B
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-4">

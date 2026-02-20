@@ -150,64 +150,40 @@ export async function fetchGithubPRs(
 
                     const { data: pulls } = await retryOperation(() =>
                         octokit.pulls.list(pullParams)
-                    );
+                    ) as any;
 
-                    const prs = await Promise.all(pulls.map(async (pull: GitHubPR) => {
-                        let reviewers: ReviewerStatus[] = [];
-                        let checks: CheckSummary | null = null;
-
-                        try {
-                            reviewers = await fetchReviewerStatuses(
-                                octokit,
-                                repo.owner.login,
-                                repo.name,
-                                pull.number,
-                                pull.requested_reviewers
-                            );
-                        } catch (error) {
-                            console.warn('Failed to fetch reviewers for PR', pull.html_url, error);
+                    return (pulls as GitHubPR[]).map((pull) => ({
+                        id: String(pull.id),
+                        title: pull.title,
+                        _merged_at: pull.merged_at,
+                        description: pull.body || '',
+                        author: {
+                            name: pull.user?.login || '',
+                            avatar: pull.user?.avatar_url || '',
+                        },
+                        repository: repo.full_name,
+                        branch: pull.head.ref,
+                        targetBranch: pull.base.ref,
+                        status: (pull.merged_at || pull.merged ? 'merged' : pull.state) as 'merged' | 'open' | 'closed',
+                        comments: pull.comments,
+                        commits: pull.commits,
+                        created: pull.created_at,
+                        updated: pull.updated_at,
+                        source: 'github' as const,
+                        url: pull.html_url,
+                        imReviewer: Boolean(pull.requested_reviewers?.find(reviewer => reviewer.login === user.login)),
+                        reviewed: Boolean(pull.requested_reviewers?.length === 0),
+                        isOwner: pull.user?.login === user.login,
+                        reviewers: [],
+                        checks: null,
+                        _github_meta: {
+                            owner: repo.owner.login,
+                            repo: repo.name,
+                            number: pull.number,
+                            head_sha: pull.head.sha,
+                            requested_reviewers: pull.requested_reviewers
                         }
-
-                        try {
-                            const { data: checksData } = await retryOperation(() =>
-                                octokit.checks.listForRef({
-                                    owner: repo.owner.login,
-                                    repo: repo.name,
-                                    ref: pull.head.sha,
-                                    per_page: 100
-                                })
-                            );
-                            checks = summarizeChecks(checksData.check_runs || []);
-                        } catch (error) {
-                            console.warn('Failed to fetch checks for PR', pull.html_url, error);
-                        }
-
-                        return {
-                            id: String(pull.id),
-                            title: pull.title,
-                            description: pull.body || '',
-                            author: {
-                                name: pull.user?.login || '',
-                                avatar: pull.user?.avatar_url || '',
-                            },
-                            repository: repo.full_name,
-                            branch: pull.head.ref,
-                            status: pull.merged ? 'merged' : pull.state,
-                            comments: pull.comments,
-                            commits: pull.commits,
-                            created: pull.created_at,
-                            updated: pull.updated_at,
-                            source: 'github' as const,
-                            url: pull.html_url,
-                            imReviewer: Boolean(pull.requested_reviewers?.find(reviewer => reviewer.login === user.login)),
-                            reviewed: Boolean(pull.requested_reviewers?.length === 0),
-                            isOwner: pull.user?.login === user.login,
-                            reviewers,
-                            checks
-                        };
                     }));
-
-                    return prs;
                 } catch (error) {
                     console.error(`Error fetching PRs for ${repo.full_name}:`, error);
                     return [];
@@ -217,7 +193,6 @@ export async function fetchGithubPRs(
             const results = await Promise.all(prPromises);
             results.forEach(prs => allPRs.push(...prs));
             
-            // Add a small delay between chunks to avoid rate limiting
             if (i + chunkSize < repos.length) {
                 await delay(100);
             }
@@ -229,4 +204,40 @@ export async function fetchGithubPRs(
         const message = error instanceof Error ? error.message : 'Failed to fetch GitHub PRs';
         throw new Error(`GitHub API Error: ${message}. Please check your token and try again.`);
     }
+}
+
+export async function fetchGithubPRDetails(
+    token: string,
+    pr: PullRequest & { _github_meta?: any }
+): Promise<Partial<PullRequest>> {
+    if (!pr._github_meta) return {};
+    
+    const octokit = new Octokit({ auth: token });
+    const { owner, repo, number, head_sha, requested_reviewers } = pr._github_meta;
+    
+    const [reviewers, checks, prInfo] = await Promise.all([
+        fetchReviewerStatuses(octokit, owner, repo, number, requested_reviewers).catch(() => []),
+        retryOperation(() =>
+            octokit.checks.listForRef({
+                owner,
+                repo,
+                ref: head_sha,
+                per_page: 100
+            })
+        ).then(({ data }) => summarizeChecks(data.check_runs || [])).catch(() => null),
+        retryOperation(() =>
+            octokit.pulls.get({
+                owner,
+                repo,
+                pull_number: number
+            })
+        ).then(({ data }) => data).catch(() => null)
+    ]);
+
+    return {
+        reviewers,
+        checks,
+        targetBranch: prInfo?.base?.ref,
+        status: prInfo ? (prInfo.merged_at || prInfo.merged ? 'merged' : prInfo.state as 'open' | 'closed') : undefined
+    };
 }
